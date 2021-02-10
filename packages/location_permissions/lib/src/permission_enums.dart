@@ -17,3 +17,10 @@ enum ServiceStatus {
   enabled,
   notApplicable,
 }
+
+enum LocationMode {
+  any,
+  sensorsOnly,
+  batterySaving,
+  highAccuracy,
+}

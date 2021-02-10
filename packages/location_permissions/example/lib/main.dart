@@ -126,7 +126,7 @@ class _PermissionState extends State<PermissionWidget> {
   void checkServiceStatus(
       BuildContext context, LocationPermissionLevel permissionLevel) {
     LocationPermissions()
-        .checkServiceStatus()
+        .checkServiceStatus(mode: LocationMode.highAccuracy)
         .then((ServiceStatus serviceStatus) {
       final SnackBar snackBar =
           SnackBar(content: Text(serviceStatus.toString()));

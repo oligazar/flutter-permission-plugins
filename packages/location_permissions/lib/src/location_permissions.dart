@@ -44,10 +44,10 @@ class LocationPermissions {
   ///
   /// Returns a [Future] containing the current service status for the supplied [LocationPermissionLevel].
   Future<ServiceStatus> checkServiceStatus(
-      {LocationPermissionLevel level =
-          LocationPermissionLevel.location}) async {
+      {LocationMode mode =
+          LocationMode.any}) async {
     final int status =
-        await _methodChannel.invokeMethod('checkServiceStatus', level.index);
+        await _methodChannel.invokeMethod('checkServiceStatus', mode.index);
 
     return ServiceStatus.values[status];
   }

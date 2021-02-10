@@ -1,8 +1,5 @@
 package com.baseflow.location_permissions;
 
-import static io.flutter.plugin.common.EventChannel.EventSink;
-import static io.flutter.plugin.common.EventChannel.StreamHandler;
-
 import android.Manifest;
 import android.app.Activity;
 import android.content.BroadcastReceiver;
@@ -16,11 +13,17 @@ import android.os.Build;
 import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Log;
+
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.embedding.engine.plugins.activity.ActivityAware;
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
@@ -32,11 +35,9 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.PluginRegistry;
 import io.flutter.plugin.common.PluginRegistry.Registrar;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+
+import static io.flutter.plugin.common.EventChannel.EventSink;
+import static io.flutter.plugin.common.EventChannel.StreamHandler;
 
 /** LocationPermissionsPlugin */
 public class LocationPermissionsPlugin implements MethodCallHandler, StreamHandler, FlutterPlugin, ActivityAware {
@@ -64,6 +65,14 @@ public class LocationPermissionsPlugin implements MethodCallHandler, StreamHandl
   private static final int SERVICE_STATUS_ENABLED = 2;
   private static final int SERVICE_STATUS_NOT_APPLICABLE = 3;
 
+  //LOCATION_MODE
+  private static final int LOCATION_MODE_ANY = 0;
+  private static final int LOCATION_MODE_SENSORS_ONLY = 1;
+  private static final int LOCATION_MODE_BATTERY_SAVING = 2;
+  private static final int LOCATION_MODE_HIGH_ACCURACY = 3;
+
+  private @interface LocationMode {}
+
   @Retention(RetentionPolicy.SOURCE)
   @IntDef({
     SERVICE_STATUS_DISABLED,
@@ -72,7 +81,7 @@ public class LocationPermissionsPlugin implements MethodCallHandler, StreamHandl
     SERVICE_STATUS_UNKNOWN,
   })
   private @interface ServiceStatus {}
-  
+
   //PERMISSION_LEVEL
   private static final int PERMISSION_LEVEL_AUTO = 0;
   private static final int PERMISSION_LEVEL_WHEN_IN_USE = 1;
@@ -143,7 +152,7 @@ public class LocationPermissionsPlugin implements MethodCallHandler, StreamHandl
         break;
       case "checkServiceStatus":
         @ServiceStatus
-        final int serviceStatus = LocationPermissionsPlugin.checkServiceStatus(applicationContext);
+        final int serviceStatus = LocationPermissionsPlugin.checkServiceStatus(applicationContext, (int) call.arguments);
         result.success(serviceStatus);
         break;
       case "requestPermission":
@@ -176,7 +185,7 @@ public class LocationPermissionsPlugin implements MethodCallHandler, StreamHandl
 
   @Override
   public void onListen(Object arguments, EventSink events) {
-    events.success(isLocationServiceEnabled(applicationContext));
+    events.success(isLocationServiceEnabled(applicationContext, LOCATION_MODE_ANY));
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
       applicationContext.registerReceiver(mReceiver, mIntentFilter);
       mEventSink = events;
@@ -232,13 +241,13 @@ public class LocationPermissionsPlugin implements MethodCallHandler, StreamHandl
   }
 
   @ServiceStatus
-  private static int checkServiceStatus(Context context) {
+  private static int checkServiceStatus(Context context, @LocationMode int locationMode) {
 
     if (context == null) {
       return SERVICE_STATUS_UNKNOWN;
     }
 
-    return isLocationServiceEnabled(context) ? SERVICE_STATUS_ENABLED : SERVICE_STATUS_DISABLED;
+    return isLocationServiceEnabled(context, locationMode) ? SERVICE_STATUS_ENABLED : SERVICE_STATUS_DISABLED;
   }
 
   private void requestPermissions(@PermissionLevel int permissionLevel) {
@@ -362,7 +371,7 @@ public class LocationPermissionsPlugin implements MethodCallHandler, StreamHandl
   }
 
   @SuppressWarnings("deprecation")
-  private static boolean isLocationServiceEnabled(Context context) {
+  private static boolean isLocationServiceEnabled(Context context, int mode) {
     if (Build.VERSION.SDK_INT >= 28) {
       final LocationManager locationManager = context.getSystemService(LocationManager.class);
       if (locationManager == null) {
@@ -381,7 +390,11 @@ public class LocationPermissionsPlugin implements MethodCallHandler, StreamHandl
         return false;
       }
 
-      return locationMode != Settings.Secure.LOCATION_MODE_OFF;
+      if (mode == LOCATION_MODE_ANY) {
+        return locationMode != Settings.Secure.LOCATION_MODE_OFF;
+      } else {
+        return locationMode == mode;
+      }
     } else {
       final String locationProviders =
           Settings.Secure.getString(
@@ -446,7 +459,7 @@ public class LocationPermissionsPlugin implements MethodCallHandler, StreamHandl
 
     @Override
     public void onReceive(Context context, Intent intent) {
-      locationPermissionsPlugin.emitLocationServiceStatus(isLocationServiceEnabled(context));
+      locationPermissionsPlugin.emitLocationServiceStatus(isLocationServiceEnabled(context, LOCATION_MODE_ANY));
     }
   }
 
